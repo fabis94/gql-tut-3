@@ -5,6 +5,7 @@ import PinIcon from "./PinIcon";
 import Context from "../context";
 import { stat } from "fs";
 import differenceInMinutes from "date-fns/difference_in_minutes";
+import { unstable_useMediaQuery as useMediaQuery } from "@material-ui/core/useMediaQuery";
 
 import { useClient } from "../client";
 import { GET_PINS_QUERY } from "../graphql/queries";
@@ -14,6 +15,12 @@ import Blog from "./Blog";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
 import DeleteIcon from "@material-ui/icons/DeleteTwoTone";
+import { Subscription } from "react-apollo";
+import {
+  PIN_ADDED_SUBSCRIPTION,
+  PIN_UPDATED_SUBSCRIPTION,
+  PIN_DELETED_SUBSCRIPTION
+} from "../graphql/subscriptions";
 
 const INIT_VIEWPORT = {
   latitude: 50,
@@ -23,6 +30,8 @@ const INIT_VIEWPORT = {
 
 const Map = ({ classes }) => {
   const client = useClient();
+  const mobileSize = useMediaQuery("(max-width: 650px)");
+
   const { state, dispatch } = useContext(Context);
   const [viewport, setViewport] = useState(INIT_VIEWPORT);
   const [userPosition, setUserPosition] = useState(null);
@@ -36,6 +45,14 @@ const Map = ({ classes }) => {
   }, []);
 
   const [popup, setPopup] = useState(null);
+
+  useEffect(() => {
+    const pinExists =
+      popup && state.pins.findIndex(p => p._id === popup._id) > -1;
+    if (!pinExists) {
+      setPopup(null);
+    }
+  }, [state.pins.length]);
 
   const getPins = async () => {
     const { getPins } = await client.request(GET_PINS_QUERY);
@@ -81,8 +98,7 @@ const Map = ({ classes }) => {
 
   const handleDeletePin = async pin => {
     const variables = { pinId: pin._id };
-    const { deletePin } = await client.request(DELETE_PIN_MUTATION, variables);
-    dispatch({ type: "DELETE_PIN", payload: deletePin });
+    await client.request(DELETE_PIN_MUTATION, variables);
 
     setPopup(null);
   };
@@ -90,7 +106,7 @@ const Map = ({ classes }) => {
   const isPopupAuthor = () => state.currentUser._id === popup.author._id;
 
   return (
-    <div className={classes.root}>
+    <div className={mobileSize ? classes.rootMobie : classes.root}>
       <ReactMapGL
         mapboxApiAccessToken="pk.eyJ1IjoiZmFiaXM5NCIsImEiOiJjanYwc2szNjYwbGZvNDVudWduN2hvZjQ1In0.sV1kfcbIdku23TivfDy_kg"
         width="100vw"
@@ -99,6 +115,7 @@ const Map = ({ classes }) => {
         onViewportChange={newViewport => setViewport(newViewport)}
         {...viewport}
         onClick={handleMapClick}
+        scrollZoom={!mobileSize}
       >
         <div className={classes.navigationControl}>
           <NavigationControl
@@ -170,6 +187,31 @@ const Map = ({ classes }) => {
           )}
         </div>
       </ReactMapGL>
+
+      <Subscription
+        subscription={PIN_ADDED_SUBSCRIPTION}
+        onSubscriptionData={({ subscriptionData }) => {
+          const { pinAdded } = subscriptionData.data;
+          dispatch({ type: "CREATE_PIN", payload: pinAdded });
+        }}
+      />
+
+      <Subscription
+        subscription={PIN_UPDATED_SUBSCRIPTION}
+        onSubscriptionData={({ subscriptionData }) => {
+          const { pinUpdated } = subscriptionData.data;
+          dispatch({ type: "CREATE_COMMENT", payload: pinUpdated });
+        }}
+      />
+
+      <Subscription
+        subscription={PIN_DELETED_SUBSCRIPTION}
+        onSubscriptionData={({ subscriptionData }) => {
+          const { pinDeleted } = subscriptionData.data;
+          dispatch({ type: "DELETE_PIN", payload: pinDeleted });
+        }}
+      />
+
       <Blog />
     </div>
   );
