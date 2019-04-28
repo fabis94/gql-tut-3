@@ -5,6 +5,7 @@ import { withStyles } from "@material-ui/core/styles";
 import Context from "../../context";
 import { Typography } from "@material-ui/core";
 import { ME_QUERY } from "../../graphql/queries";
+import { BASE_URL } from "../../client";
 
 const Login = ({ classes }) => {
   const { dispatch } = useContext(Context);
@@ -12,7 +13,7 @@ const Login = ({ classes }) => {
   const onSuccess = async user => {
     try {
       const idToken = user.getAuthResponse().id_token;
-      const client = new GraphQLClient("http://localhost:4000/graphql", {
+      const client = new GraphQLClient(BASE_URL, {
         headers: {
           authorization: idToken
         }
@@ -20,6 +21,7 @@ const Login = ({ classes }) => {
 
       const data = await client.request(ME_QUERY);
       dispatch({ type: "LOGIN_USER", payload: data.me });
+      dispatch({ type: "IS_LOGGED_IN", payload: user.isSignedIn() });
     } catch (err) {
       onFailure(err);
     }
@@ -46,6 +48,7 @@ const Login = ({ classes }) => {
         onFailure={onFailure}
         isSignedIn={true}
         theme="dark"
+        buttonText="Login"
       />
     </div>
   );
