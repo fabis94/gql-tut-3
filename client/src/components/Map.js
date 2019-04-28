@@ -8,11 +8,12 @@ import differenceInMinutes from "date-fns/difference_in_minutes";
 
 import { useClient } from "../client";
 import { GET_PINS_QUERY } from "../graphql/queries";
+import { DELETE_PIN_MUTATION } from "../graphql/mutations";
 
 import Blog from "./Blog";
-// import Button from "@material-ui/core/Button";
+import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
-// import DeleteIcon from "@material-ui/icons/DeleteTwoTone";
+import DeleteIcon from "@material-ui/icons/DeleteTwoTone";
 
 const INIT_VIEWPORT = {
   latitude: 50,
@@ -77,6 +78,16 @@ const Map = ({ classes }) => {
     setPopup(pin);
     dispatch({ type: "SET_PIN", payload: pin });
   };
+
+  const handleDeletePin = async pin => {
+    const variables = { pinId: pin._id };
+    const { deletePin } = await client.request(DELETE_PIN_MUTATION, variables);
+    dispatch({ type: "DELETE_PIN", payload: deletePin });
+
+    setPopup(null);
+  };
+
+  const isPopupAuthor = () => state.currentUser._id === popup.author._id;
 
   return (
     <div className={classes.root}>
@@ -149,6 +160,11 @@ const Map = ({ classes }) => {
                 <Typography>
                   {popup.latitude.toFixed(6)}, {popup.longitude.toFixed(6)}
                 </Typography>
+                {isPopupAuthor() && (
+                  <Button onClick={() => handleDeletePin(popup)}>
+                    <DeleteIcon className={classes.deleteIcon} />
+                  </Button>
+                )}
               </div>
             </Popup>
           )}
